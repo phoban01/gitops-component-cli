@@ -30,7 +30,7 @@ type Context struct {
 type PushOpts struct {
 	Name       string
 	Repository string
-	Vendor     bool
+	Copy       bool
 }
 
 type BuildOpts struct {

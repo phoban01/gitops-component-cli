@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/open-component-model/ocm/pkg/common/accessobj"
@@ -21,7 +21,7 @@ import (
 type Push struct {
 	Component  string `arg:"" name:"component" help:"component" type:"component"`
 	Repository string `arg:"" name:"repository" help:"repository" type:"repository"`
-	Vendor     bool   `help:"Copy remote resources to the target repository" short:"v"`
+	Copy       bool   `help:"Copy remote resources to the target repository" short:"c"`
 }
 
 func (p *Push) Help() string {
@@ -36,7 +36,7 @@ func (p *Push) Run() error {
 	opts := &component.PushOpts{
 		Name:       p.Component,
 		Repository: p.Repository,
-		Vendor:     p.Vendor,
+		Copy:       p.Copy,
 	}
 	return p.run(opts)
 }
@@ -55,8 +55,8 @@ func (p *Push) run(opts *component.PushOpts) error {
 	defer repo.Close()
 
 	handlerOpts := []transferhandler.TransferOption{
-		standard.Recursive(opts.Vendor),
-		standard.ResourcesByValue(opts.Vendor),
+		standard.Recursive(opts.Copy),
+		standard.ResourcesByValue(opts.Copy),
 		standard.Overwrite(true),
 		standard.Resolver(repo),
 	}
@@ -66,7 +66,13 @@ func (p *Push) run(opts *component.PushOpts) error {
 		return err
 	}
 
-	loc := fmt.Sprintf("/home/piaras/.cache/ocm/%s", strings.ReplaceAll(opts.Name, ":", "/"))
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return err
+	}
+
+	loc := path.Join(cacheDir, "ocm", strings.ReplaceAll(opts.Name, ":", "/"))
+
 	cv, err := comparch.Open(octx, accessobj.ACC_READONLY, loc, os.ModePerm)
 	if err != nil {
 		return err
