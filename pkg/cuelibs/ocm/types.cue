@@ -7,32 +7,44 @@ HelmRepository:     "helmRepository"
 KubernetesManifest: "cue"
 GitRepository:      "repository"
 File:               "file"
+CUE:                "cuelang"
 
 ResourceType: Image | Artifact | KubernetesManifest | HelmChart | HelmRepository | GitRepository | File
 
-#Component: {
-	version:   string
-	name:      string
-	namespace: string
-	provider:  string
-	resources: [string]:  #Resource
-	references: [string]: #Reference
-	sources: [string]:    #Source
+Component: {
+	apiVersion: string
+	kind:       string
+	metadata: {
+		name:    string
+		version: string
+		provider: {
+			name: string
+		}
+	}
+	repositoryContexts: [...]
+	spec: {
+		resources: [...]
+		references: [...]
+		sources: [...]
+	}
 }
 
-#Resource: {
+Resource: {
+	name: string
+	type: string
+	access: {
+		imageReference: string
+	}
+	image: access.imageReference
+}
+
+Reference: {
 	type:    ResourceType
 	version: string
 	url:     string
 }
 
-#Reference: {
-	type:    ResourceType
-	version: string
-	url:     string
-}
-
-#Source: {
+Source: {
 	type:    ResourceType
 	version: string
 	url:     string

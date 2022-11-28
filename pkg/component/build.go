@@ -6,10 +6,19 @@ import (
 	"path/filepath"
 
 	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/format"
 	"cuelang.org/go/cue/load"
 )
 
 func (c *Context) Build(opts *BuildOpts) (*cue.Value, error) {
+	v, err := c.BuildInstance(opts)
+	if err != nil {
+		return nil, err
+	}
+	return c.buildComponentArchive(v, opts)
+}
+
+func (c *Context) BuildInstance(opts *BuildOpts) (*cue.Value, error) {
 	data, err := os.ReadFile(opts.Filename)
 	if err != nil {
 		return nil, err
@@ -29,6 +38,10 @@ func (c *Context) Build(opts *BuildOpts) (*cue.Value, error) {
 
 	v := c.context.BuildInstance(inst[0])
 
+	return &v, nil
+}
+
+func (c *Context) buildComponentArchive(v *cue.Value, opts *BuildOpts) (*cue.Value, error) {
 	provider, err := v.LookupPath(cue.MakePath(cue.Str("provider"))).String()
 	if err != nil {
 		return nil, err
@@ -38,16 +51,15 @@ func (c *Context) Build(opts *BuildOpts) (*cue.Value, error) {
 		return nil, err
 	}
 
-	resources, err := v.LookupPath(cue.MakePath(cue.Str("resources"))).List()
+	resources, err := v.LookupPath(cue.MakePath(cue.Str("resources"))).Struct()
 	if err != nil {
 		return nil, err
 	}
 
-	for {
-		if !resources.Next() {
-			break
-		}
-		res := resources.Value()
+	items := resources.Fields()
+
+	for items.Next() {
+		res := items.Value()
 
 		name, err := res.LookupPath(cue.MakePath(cue.Str("name"))).String()
 		if err != nil {
@@ -90,6 +102,20 @@ func (c *Context) Build(opts *BuildOpts) (*cue.Value, error) {
 			if err := c.imageHandler(o); err != nil {
 				return nil, err
 			}
+
+		case "cuelang":
+			raw := res.LookupPath(cue.MakePath(cue.Str("data"))).Syntax(cue.Raw())
+			node, err := format.Node(raw)
+			if err != nil {
+				return nil, err
+			}
+			o := &addCuelangOpts{
+				name: name,
+				data: node,
+			}
+			if err := c.cuelangHandler(o); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -97,6 +123,7 @@ func (c *Context) Build(opts *BuildOpts) (*cue.Value, error) {
 		name: "componentfile",
 		path: opts.Filename,
 	}
+
 	if err := c.fileHandler(o); err != nil {
 		return nil, err
 	}
@@ -105,5 +132,5 @@ func (c *Context) Build(opts *BuildOpts) (*cue.Value, error) {
 		return nil, err
 	}
 
-	return &v, nil
+	return v, nil
 }

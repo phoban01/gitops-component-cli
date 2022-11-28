@@ -6,10 +6,14 @@ import (
 	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/inputs/types/file"
 	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/inputs/types/ociimage"
 	"github.com/open-component-model/ocm/pkg/common"
+	"github.com/open-component-model/ocm/pkg/common/accessio"
+	"github.com/open-component-model/ocm/pkg/common/accessobj"
 	"github.com/open-component-model/ocm/pkg/contexts/clictx"
+	"github.com/open-component-model/ocm/pkg/contexts/datacontext/attrs/tmpcache"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartefact"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	metav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/ocm/pkg/mime"
 )
 
 type addFileOpts struct {
@@ -22,6 +26,7 @@ type addFileOpts struct {
 // TODO: enable compression
 func (c *Context) fileHandler(opts *addFileOpts) error {
 	ictx := inputs.NewContext(clictx.DefaultContext(), nil, nil)
+	tmpcache.Set(clictx.DefaultContext(), &tmpcache.Attribute{Path: "/tmp"})
 
 	mtype, err := mimetype.DetectFile(opts.path)
 	if err != nil {
@@ -89,6 +94,47 @@ func (c *Context) imageHandler(opts *addImageOpts) error {
 	spec := ociartefact.New(opts.image)
 
 	if err := c.archive.SetResource(r, spec); err != nil {
+		return err
+	}
+
+	if err := c.archive.Update(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type addCuelangOpts struct {
+	name    string
+	labels  map[string]string
+	version string
+	data    []byte
+}
+
+func (c *Context) cuelangHandler(opts *addCuelangOpts) error {
+	r := &compdesc.ResourceMeta{
+		ElementMeta: compdesc.ElementMeta{
+			Name:          opts.name,
+			ExtraIdentity: opts.labels,
+			Version:       opts.version,
+		},
+		Relation: metav1.LocalRelation,
+		Type:     "cuelang",
+	}
+
+	ictx := inputs.NewContext(clictx.DefaultContext(), nil, nil)
+	tmpcache.Set(clictx.DefaultContext(), &tmpcache.Attribute{Path: "/tmp"})
+
+	src := accessio.DataAccessForBytes(opts.data)
+	blob := accessobj.CachedBlobAccessForDataAccess(ictx, mime.MIME_TEXT, src)
+
+	acc, err := c.archive.AddBlob(blob, "cuelang", "", nil)
+	if err != nil {
+		return err
+	}
+	blob.Close()
+
+	if err := c.archive.SetResource(r, acc); err != nil {
 		return err
 	}
 
