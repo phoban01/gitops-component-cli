@@ -1,10 +1,11 @@
 package component
 
 import (
-	"fmt"
+	"context"
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/load"
@@ -17,9 +18,44 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	metav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/pkg/errors"
 )
+
+type safeMap struct {
+	mu     sync.Mutex
+	output map[string]cue.Value
+}
+
+func NewSafeMap() safeMap {
+	return safeMap{
+		output: make(map[string]cue.Value),
+	}
+}
+
+func (o *safeMap) Add(key string, v cue.Value) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.output[key] = v
+}
+
+func (o *safeMap) Get(key string) cue.Value {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.output[key]
+}
+
+func (o *safeMap) Has(key string) bool {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	_, found := o.output[key]
+	return found
+}
+
+func (o *safeMap) Copy() map[string]cue.Value {
+	return o.output
+}
 
 type ResolveOpts struct {
 	Filename string
@@ -54,81 +90,148 @@ func (c *Context) Resolve(opts *ResolveOpts) (*cue.Value, error) {
 
 	iter, _ := cmp.Fields()
 
+	components := NewSafeMap()
+
+	g, _ := errgroup.WithContext(context.TODO())
+
 	for iter.Next() {
 		v := iter.Value()
-		request := v.LookupPath(cue.ParsePath("$method"))
-		if request.Err() != nil {
-			continue
-		}
-		requestType, err := request.String()
-		if err != nil {
-			return nil, err
-		}
-		switch requestType {
-		case "get-resource":
-			repo, err := iter.Value().LookupPath(cue.ParsePath("repository")).String()
-			if err != nil {
-				fmt.Println(err)
-				return nil, err
+		g.Go(func() error {
+			request := v.LookupPath(cue.ParsePath("$method"))
+			if request.Err() != nil {
+				return nil
 			}
-			component, err := iter.Value().LookupPath(cue.ParsePath("component")).String()
+			requestType, err := request.String()
 			if err != nil {
-				return nil, err
+				return err
 			}
-
-			resource, err := iter.Value().LookupPath(cue.ParsePath("resource")).String()
-			if err != nil {
-				return nil, err
-			}
-
-			ocmRepo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(repo, nil))
-			if err != nil {
-				return nil, err
-			}
-			defer ocmRepo.Close()
-
-			resp, err := c.resolveComponent(octx, ocmRepo, component)
-			if err != nil {
-				return nil, err
-			}
-
-			resources, err := resp.LookupPath(cue.MakePath(cue.Str("spec"), cue.Str("resources"))).List()
-			if err != nil {
-				return nil, err
-			}
-
-			for resources.Next() {
-				item := resources.Value()
-				match := item.LookupPath(cue.MakePath(cue.Str("name")))
-				if match.Err() != nil {
-					continue
-				}
-				matchValue, err := match.String()
+			switch requestType {
+			case "get-resource":
+				repo, err := v.LookupPath(cue.ParsePath("repository")).String()
 				if err != nil {
-					return nil, err
+					return err
 				}
-				if matchValue != resource {
-					continue
-				}
-				resType, err := item.LookupPath(cue.MakePath(cue.Str("type"))).String()
+
+				component, err := v.LookupPath(cue.ParsePath("component")).String()
 				if err != nil {
-					return nil, err
+					return err
 				}
-				if resType == "cuelang" {
-					resData, err := c.resolveResourceData(octx, ocmRepo, component, resource)
+
+				key := path.Join(repo, component)
+				if ok := components.Has(key); !ok {
+					ocmRepo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(repo, nil))
 					if err != nil {
-						return nil, err
+						return err
 					}
-					cueValue := c.context.CompileBytes(resData)
-					item = item.FillPath(cue.ParsePath("data"), cueValue)
+					res, err := c.resolveComponent(octx, ocmRepo, component)
+					if err != nil {
+						return err
+					}
+					components.Add(key, *res)
+					ocmRepo.Close()
 				}
-				*cmp = cmp.FillPath(v.Path(), item)
-				break
+			default:
+				return nil
 			}
-		default:
-			continue
-		}
+			return nil
+
+		})
 	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	iter, _ = cmp.Fields()
+
+	g, _ = errgroup.WithContext(context.TODO())
+
+	output := NewSafeMap()
+
+	for iter.Next() {
+		v := iter.Value()
+		g.Go(func() error {
+			request := v.LookupPath(cue.ParsePath("$method"))
+			if request.Err() != nil {
+				return nil
+			}
+			requestType, err := request.String()
+			if err != nil {
+				return err
+			}
+			switch requestType {
+			case "get-resource":
+				repo, err := v.LookupPath(cue.ParsePath("repository")).String()
+				if err != nil {
+					return err
+				}
+
+				component, err := v.LookupPath(cue.ParsePath("component")).String()
+				if err != nil {
+					return err
+				}
+
+				key := path.Join(repo, component)
+
+				resource, err := v.LookupPath(cue.ParsePath("resource")).String()
+				if err != nil {
+					return err
+				}
+
+				resources, err := components.Get(key).LookupPath(cue.MakePath(cue.Str("spec"), cue.Str("resources"))).List()
+				if err != nil {
+					return err
+				}
+
+				for resources.Next() {
+					item := resources.Value()
+					match := item.LookupPath(cue.MakePath(cue.Str("name")))
+					if match.Err() != nil {
+						continue
+					}
+					matchValue, err := match.String()
+					if err != nil {
+						return err
+					}
+					if matchValue != resource {
+						continue
+					}
+					resType, err := item.LookupPath(cue.MakePath(cue.Str("type"))).String()
+					if err != nil {
+						return err
+					}
+					if resType == "cuelang" {
+						ocmRepo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(repo, nil))
+						if err != nil {
+							return err
+						}
+						resData, err := c.resolveResourceData(octx, ocmRepo, component, resource)
+						if err != nil {
+							return err
+						}
+						cueValue := c.context.CompileBytes(resData)
+						item = item.FillPath(cue.ParsePath("data"), cueValue)
+						ocmRepo.Close()
+					}
+					output.Add(v.Path().String(), item)
+					break
+				}
+			default:
+				return nil
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	outputData := output.Copy()
+	for p, item := range outputData {
+		*cmp = cmp.FillPath(cue.ParsePath(p), item)
+	}
+
 	return cmp, err
 }
 

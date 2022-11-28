@@ -23,7 +23,7 @@ gitopsx component build github.com/acme/mycomponent:v1.0.0
 # push
 gitopsx component push github.com/acme/mycomponent:v1.0.0 ghcr.io/$GITHUB_USER
 
-# render (currently very slow...)
+# render
 gitopsx component render -f Application.cue -oyaml
 ```
 
