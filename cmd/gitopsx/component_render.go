@@ -39,10 +39,14 @@ func (r *Render) Run() error {
 		return err
 	}
 
-	out := res.LookupPath(cue.MakePath(cue.Str(r.Expr)))
+	//TODO: check if this is actually a list?
+	out, err := res.LookupPath(cue.MakePath(cue.Str(r.Expr))).List()
+	if err != nil {
+		return err
+	}
 
 	if r.Format == "yaml" {
-		data, err := yaml.Encode(out)
+		data, err := yaml.EncodeStream(out)
 		if err != nil {
 			return err
 		}

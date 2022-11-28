@@ -5,32 +5,73 @@ import (
 provider: "weaveworks"
 
 resources: {
-	podinfo: ocm.#Image & {
-		name:    "podinfo"
-		image:   "ghcr.io/stefanprodan/podinfo:6.2.0"
-		version: "6.2.0"
+	image: ocm.#Image & {
+		name:    "image"
+		image:   "ghcr.io/weaveworks/wego-app:v0.11.0"
+		version: "v0.11.0"
 	}
 
-	app: ocm.#Cue & {
-		name: "deployment"
+	chart: ocm.#Image & {
+		name:    "chart"
+		image:   "ghcr.io/weaveworks/charts/weave-gitops:4.0.8"
+		version: "v0.11.0"
+	}
+
+	source: ocm.#Cue & {
+		name: "source"
 		data: {
 			args: {
-				image:     string
+				repo:      string | *"ghcr.io/weaveworks/charts"
+				name:      string | *"weave-gitops"
 				namespace: string | *"default"
-				replicas:  int | *2
+				interval:  string | *"10m0s"
 			}
 			template: {
-				apiVersion: "apps/v1"
-				kind:       "Deployment"
+				apiVersion: "source.toolkit.fluxcd.io/v1beta2"
+				kind:       "HelmRepository"
 				metadata: {
-					name:      "app"
+					name:      args.name
 					namespace: args.namespace
 				}
 				spec: {
-					replicas: args.replicas
-					template: spec: containers: [{
-						image: args.image
-					}]
+					interval: args.interval
+					url:      "oci://\(args.repo)"
+				}
+			}
+		}
+	}
+
+	helmrelease: ocm.#Cue & {
+		name: "helmrelease"
+		data: {
+			args: {
+				version: string | *"^4.0"
+				source: {
+					kind:      string | *"HelmRepository"
+					name:      string | *"weave-gitops"
+					namespace: string | *"default"
+				}
+				name:      string | *"weave-gitops"
+				namespace: string | *"default"
+				interval:  string | *"10m0s"
+				chart:     "weave-gitops"
+				values: {...}
+			}
+			template: {
+				apiVersion: "source.toolkit.fluxcd.io/v1beta2"
+				kind:       "HelmRepository"
+				metadata: {
+					name:      args.name
+					namespace: args.namespace
+				}
+				spec: {
+					interval: args.interval
+					chart: spec: {
+						chart:     args.chart
+						version:   args.version
+						sourceRef: args.source
+					}
+					values: args.values
 				}
 			}
 		}

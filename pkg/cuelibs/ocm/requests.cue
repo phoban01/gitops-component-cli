@@ -8,5 +8,5 @@ ResourceRequest: {
 	access: {
 		imageReference: string
 	}
-	image: access.imageReference
+	url: access.imageReference
 }

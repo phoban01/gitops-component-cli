@@ -1,21 +1,42 @@
 import "ocm.software/ocm"
 
-podinfo: ocm.ResourceRequest & {
+base: {
 	repository: "ghcr.io/phoban01"
-	component:  "github.com/phoban01/test:v1.0.3"
-	resource:   "podinfo"
+	component:  "github.com/phoban01/weave-gitops:v1.0.0"
 }
 
-deployment: ocm.ResourceRequest & {
-	repository: "ghcr.io/phoban01"
-	component:  "github.com/phoban01/test:v1.0.4"
-	resource:   "deployment"
+wego: base & ocm.ResourceRequest & {
+	resource: "image"
 }
 
-out: (deployment.data & {
+chart: base & ocm.ResourceRequest & {
+	resource: "chart"
+}
+
+source: base & ocm.ResourceRequest & {
+	resource: "source"
+}
+
+sourceOutput: (source.data & {
+	args: repo: chart.url
+}).template
+
+release: base & ocm.ResourceRequest & {
+	resource: "helmrelease"
+}
+
+releaseOutput: (release.data & {
 	args: {
-		image:     podinfo.image
-		replicas:  1
-		namespace: "default"
+		values: {
+			image: {
+				repository: wego.url
+				tag:        "latest"
+			}
+		}
 	}
 }).template
+
+out: [
+	sourceOutput,
+	releaseOutput,
+]

@@ -103,7 +103,7 @@ deployment: ocm.ResourceRequest & {
 
 out: (deployment.data & {
 	args: {
-		image:     podinfo.image
+		image:     podinfo.url
 		replicas:  1
 		namespace: "default"
 	}
