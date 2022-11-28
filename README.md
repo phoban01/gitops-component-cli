@@ -8,7 +8,7 @@ Note this is very early stages work with many rough edges and performance is qui
 
 The componet CLI is a tool to enable building, shipping and deploying OCM components.
 
-(CUE)[https://cuelang.org] provides the frontend for building and rendering components.
+[CUE](https://cuelang.org) provides the frontend for building and rendering components.
 
 ```
 # make
