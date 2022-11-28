@@ -2,13 +2,17 @@ package component
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"path/filepath"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/load"
 	"cuelang.org/go/encoding/yaml"
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/open-component-model/ocm/pkg/common/accessio"
 	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
+	"github.com/open-component-model/ocm/pkg/contexts/oci/attrs/cacheattr"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	metav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
@@ -25,6 +29,27 @@ func (c *Context) Resolve(opts *ResolveOpts) (*cue.Value, error) {
 	cmp, err := c.BuildInstance(&BuildOpts{Filename: opts.Filename})
 	if err != nil {
 		return nil, err
+	}
+
+	octx := ocm.DefaultContext()
+
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return nil, err
+	}
+
+	cache, err := accessio.NewStaticBlobCache(path.Join(cacheDir, "ocm", "blobs"))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cacheattr.Set(octx.AttributesContext(), cache); err != nil {
+		return nil, err
+	}
+
+	spec := dockerconfig.NewRepositorySpec("~/.docker/config.json", true)
+	if _, err := octx.CredentialsContext().RepositoryForSpec(spec); err != nil {
+		return nil, errors.Wrapf(err, "cannot access default docker config")
 	}
 
 	iter, _ := cmp.Fields()
@@ -50,14 +75,10 @@ func (c *Context) Resolve(opts *ResolveOpts) (*cue.Value, error) {
 			if err != nil {
 				return nil, err
 			}
+
 			resource, err := iter.Value().LookupPath(cue.ParsePath("resource")).String()
 			if err != nil {
 				return nil, err
-			}
-			octx := ocm.DefaultContext()
-			spec := dockerconfig.NewRepositorySpec("~/.docker/config.json", true)
-			if _, err := octx.CredentialsContext().RepositoryForSpec(spec); err != nil {
-				return nil, errors.Wrapf(err, "cannot access default docker config")
 			}
 
 			ocmRepo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(repo, nil))
@@ -134,16 +155,11 @@ func (c *Context) resolveComponent(ctx ocm.Context, repo ocm.Repository, compone
 		return nil, err
 	}
 
-	ivv := map[string]load.Source{
+	sources := map[string]load.Source{
 		filepath.Join(workingdir, "cd.cue"): load.FromFile(cdv),
 	}
 
-	v, err := parse(c.context, ivv)
-	if err != nil {
-		return nil, err
-	}
-
-	return &v, nil
+	return parse(c.context, sources)
 }
 
 func (c *Context) resolveResourceData(ctx ocm.Context, repo ocm.Repository, component, resource string) ([]byte, error) {
@@ -171,14 +187,15 @@ func (c *Context) resolveResourceData(ctx ocm.Context, repo ocm.Repository, comp
 	return acc.Get()
 }
 
-func parse(ctx *cue.Context, s map[string]load.Source) (cue.Value, error) {
+func parse(ctx *cue.Context, s map[string]load.Source) (*cue.Value, error) {
 	bis := load.Instances([]string{}, &load.Config{
 		Dir:     workingdir,
 		Package: "*",
 		Overlay: s,
 	})
 	if len(bis) != 1 {
-		return cue.Value{}, errors.New("not vaild")
+		return &cue.Value{}, errors.New("not vaild")
 	}
-	return ctx.BuildInstance(bis[0]), nil
+	v := ctx.BuildInstance(bis[0])
+	return &v, nil
 }
