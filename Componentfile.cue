@@ -35,6 +35,7 @@ resources: {
 				}
 				spec: {
 					interval: args.interval
+					type:     "oci"
 					url:      "oci://\(args.repo)"
 				}
 			}
@@ -59,7 +60,7 @@ resources: {
 			}
 			template: {
 				apiVersion: "helm.toolkit.fluxcd.io/v2beta1"
-				kind:       "HelmRepository"
+				kind:       "HelmRelease"
 				metadata: {
 					name:      args.name
 					namespace: args.namespace
