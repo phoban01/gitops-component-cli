@@ -11,7 +11,7 @@ import (
 )
 
 type Render struct {
-	File   string `optional:"" default:"Application.cue" short:"f"`
+	File   string `optional:"" default:"application.cue" short:"f"`
 	Expr   string `optional:"" default:"out" short:"e"`
 	Format string `optional:"" short:"o"`
 }
@@ -39,14 +39,15 @@ func (r *Render) Run() error {
 		return err
 	}
 
-	//TODO: check if this is actually a list?
-	out, err := res.LookupPath(cue.MakePath(cue.Str(r.Expr))).List()
-	if err != nil {
-		return err
-	}
+	out := res.LookupPath(cue.MakePath(cue.Str(r.Expr)))
 
 	if r.Format == "yaml" {
-		data, err := yaml.EncodeStream(out)
+		//TODO: check if this is actually a list?
+		l, err := out.List()
+		if err != nil {
+			return err
+		}
+		data, err := yaml.EncodeStream(l)
 		if err != nil {
 			return err
 		}

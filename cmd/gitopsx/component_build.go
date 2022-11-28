@@ -8,7 +8,7 @@ import (
 
 type Build struct {
 	Name          string `arg:"" name:"name" help:"Name and optionally a tag" type:"name"`
-	ComponentFile string `optional:"" default:"Componentfile.cue" short:"f"`
+	ComponentFile string `optional:"" default:"componentfile.cue" short:"f"`
 }
 
 func (b *Build) Help() string {

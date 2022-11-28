@@ -2,7 +2,7 @@
 
 ** An experimental tool to manage components for GitOps **
 
-Note this is very early stages work with many rough edges and performance is quite slow. 
+Note this is very early stages work with many rough edges and performance is quite slow.
 
 ## Getting started
 
@@ -29,9 +29,9 @@ gitopsx component render -f Application.cue -oyaml
 
 ## Componentfile
 
-To package a **Component** create a `Componentfile.cue`.
+To package a **Component** create a `componentfile.cue`.
 
-Here is a `Componentfile` that has two resources: a container(podinfo) and the Kubernetes configuration (app) that can be used to deploy it:
+Here is a `componentfile` that has two resources: a container(podinfo) and the Kubernetes configuration (app) that can be used to deploy it:
 
 ```golang
 import (
@@ -74,9 +74,9 @@ resources: {
 }
 ```
 
-We can build the component by passing the `Componentfile.cue` to the build command:
+We can build the component by passing the `componentfile.cue` to the build command:
 
-`gitopsx component build -f Componentfile.cue github.com/acme/my-component:v1.0.0`
+`gitopsx component build -f componentfile.cue github.com/acme/my-component:v1.0.0`
 
 Components can be stored in any OCI registry:
 

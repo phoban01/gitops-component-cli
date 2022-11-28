@@ -22,8 +22,8 @@ chart: base & ocm.ResourceRequest & {
 source: base & ocm.ResourceRequest & {
 	resource: "source"
 	data: args: {
-		namespace: config.ns
-		repo:      chart.image.repository
+		namespace:  config.ns
+		repository: chart.image.repository
 	}
 }
 
@@ -46,7 +46,6 @@ release: base & ocm.ResourceRequest & {
 	}
 }
 
-// policy for output
 out: [...{
 	kind: "HelmRepository" | "HelmRelease"
 	metadata: namespace: =~"^[a-z]+-dev$"

@@ -21,10 +21,10 @@ resources: {
 		name: "source"
 		data: {
 			args: {
-				repo:      string | *"ghcr.io/weaveworks/charts"
-				name:      string | *"weave-gitops"
-				namespace: string | *"default"
-				interval:  string | *"10m0s"
+				repository: string | *"ghcr.io/weaveworks/charts"
+				name:       string | *"weave-gitops"
+				namespace:  string | *"default"
+				interval:   string | *"10m0s"
 			}
 			template: {
 				apiVersion: "source.toolkit.fluxcd.io/v1beta2"
@@ -36,7 +36,7 @@ resources: {
 				spec: {
 					interval: args.interval
 					type:     "oci"
-					url:      "oci://\(args.repo)"
+					url:      "oci://\(args.repository)"
 				}
 			}
 		}
