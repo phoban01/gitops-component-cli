@@ -15,33 +15,25 @@ chart: base & ocm.ResourceRequest & {
 
 source: base & ocm.ResourceRequest & {
 	resource: "source"
+	data: args: repo: chart.image.repository
 }
-
-sourceOutput: (source.data & {
-	args: repo: chart.image.repository
-}).template
 
 release: base & ocm.ResourceRequest & {
 	resource: "helmrelease"
-}
-
-releaseOutput: (release.data & {
-	args: {
-		values: {
-			image: {
-				repository: wego.image.name
-				tag:        wego.image.tag
-			}
-			adminUser: {
-				create:       true
-				username:     "admin"
-				passwordHash: "$2y$10$zTRdq9bLcEmGF27exGcKZ.LnSNIOpwV.n5H7tLP4/oyuSRGjTk7Ai"
-			}
+	data: args: values: {
+		image: {
+			repository: wego.image.name
+			tag:        wego.image.tag
+		}
+		adminUser: {
+			create:       true
+			username:     "admin"
+			passwordHash: "$2y$10$zTRdq9bLcEmGF27exGcKZ.LnSNIOpwV.n5H7tLP4/oyuSRGjTk7Ai"
 		}
 	}
-}).template
+}
 
 out: [
-	sourceOutput,
-	releaseOutput,
+	source.data.template,
+	release.data.template,
 ]
