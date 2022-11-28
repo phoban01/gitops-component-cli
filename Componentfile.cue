@@ -58,7 +58,7 @@ resources: {
 				values: {...}
 			}
 			template: {
-				apiVersion: "source.toolkit.fluxcd.io/v1beta2"
+				apiVersion: "helm.toolkit.fluxcd.io/v2beta1"
 				kind:       "HelmRepository"
 				metadata: {
 					name:      args.name
