@@ -16,6 +16,6 @@ out: (deployment.data & {
 	args: {
 		image:     podinfo.image
 		replicas:  1
-		namespace: "customer-ns-1"
+		namespace: "default"
 	}
 }).template

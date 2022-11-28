@@ -6,12 +6,15 @@
 
 ```
 # make
-go build -o ./bin ./cmd/gitops
+go install./cmd/gitopsx
 
 # build
-./bin/gitops component build github.com/acme/mycomponent:v1.0.0
+gitopsx component build github.com/acme/mycomponent:v1.0.0
 
 # push
-./bin/gitops component push github.com/acme/mycomponent:v1.0.0 ghcr.io/$GITHUB_USER
+gitopsx component push github.com/acme/mycomponent:v1.0.0 ghcr.io/$GITHUB_USER
 
+# render (currently very slow...)
+gitopsx component render -f Application.cue -oyaml
 ```
+
