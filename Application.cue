@@ -18,7 +18,7 @@ source: base & ocm.ResourceRequest & {
 }
 
 sourceOutput: (source.data & {
-	args: repo: chart.url
+	args: repo: chart.image.repository
 }).template
 
 release: base & ocm.ResourceRequest & {
@@ -29,8 +29,8 @@ releaseOutput: (release.data & {
 	args: {
 		values: {
 			image: {
-				repository: wego.url
-				tag:        "latest"
+				repository: wego.image.repository
+				tag:        wego.image.tag
 			}
 		}
 	}

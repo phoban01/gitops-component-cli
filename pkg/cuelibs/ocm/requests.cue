@@ -1,5 +1,11 @@
 package ocm
 
+import (
+	"strings"
+	"path"
+
+)
+
 ResourceRequest: {
 	$method:    "get-resource"
 	repository: string
@@ -9,4 +15,11 @@ ResourceRequest: {
 		imageReference: string
 	}
 	url: access.imageReference
+	image: {
+		_parts:     strings.Split(access.imageReference, ":")
+		_base:      _parts[0]
+		tag:        _parts[1]
+		repository: path.Dir(_base)
+		chart:      path.Base(_base)
+	}
 }
