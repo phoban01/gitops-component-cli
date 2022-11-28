@@ -2,6 +2,8 @@
 
 ** An experimental tool to manage components for GitOps **
 
+Note this is very early stages work with many rough edges and performance is quite slow. 
+
 ## Getting started
 
 The componet CLI is a tool to enable building, shipping and deploying OCM components.
@@ -30,7 +32,8 @@ gitopsx component render -f Application.cue -oyaml
 To package a **Component** create a `Componentfile.cue`.
 
 Here is a `Componentfile` that has two resources: a container(podinfo) and the Kubernetes configuration (app) that can be used to deploy it:
-```
+
+```golang
 import (
 	"ocm.software/ocm"
 )
@@ -71,11 +74,19 @@ resources: {
 }
 ```
 
+We can build the component by passing the `Componentfile.cue` to the build command:
+
+`gitopsx component build -f Componentfile.cue github.com/acme/my-component:v1.0.0`
+
+Components can be stored in any OCI registry:
+
+`gitopsx component push github.com/acme/my-component:v1.0.0 ghcr.io/acme`
+
 ## Render applications
 
 Using the Component CLI we can request resources directly via CUE. Here we request the podinfo and the deployment config. Then we render the deployment configuration using parameters from the podinfo resource:
 
-```cuelang
+```golang
 import "ocm.software/ocm"
 
 podinfo: ocm.ResourceRequest & {
@@ -98,3 +109,7 @@ out: (deployment.data & {
 	}
 }).template
 ```
+
+To generate the output as yaml we use the following component cli commands:
+
+`gitopsx component render -f Application.cue -oyaml`
