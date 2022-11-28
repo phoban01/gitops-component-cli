@@ -8,15 +8,14 @@ podinfo: ocm.ResourceRequest & {
 
 deployment: ocm.ResourceRequest & {
 	repository: "ghcr.io/phoban01"
-	component:  "github.com/phoban01/test:v1.0.3"
+	component:  "github.com/phoban01/test:v1.0.4"
 	resource:   "deployment"
-	data: {
-		args: {
-			image:     podinfo.image
-			namespace: "test"
-			replicas:  1
-		}
-	}
 }
 
-out: deployment.data.template
+out: (deployment.data & {
+	args: {
+		image:     podinfo.image
+		replicas:  1
+		namespace: "customer-ns-1"
+	}
+}).template
