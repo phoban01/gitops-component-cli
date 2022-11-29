@@ -31,8 +31,8 @@ release: base & ocm.ResourceRequest & {
 	resource: "helmrelease"
 	data: args: {
 		namespace: config.ns
+		source: namespace: config.ns
 		values: {
-			source: namespace: config.ns
 			image: {
 				repository: wego.image.name
 				tag:        wego.image.tag
@@ -52,6 +52,6 @@ out: [...{
 }]
 
 out: [
-	source.data.template,
-	release.data.template,
+	source.output,
+	release.output,
 ]

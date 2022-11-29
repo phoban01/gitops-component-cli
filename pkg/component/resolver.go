@@ -10,6 +10,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/load"
 	"cuelang.org/go/encoding/yaml"
+	"cuelang.org/go/tools/flow"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/open-component-model/ocm/pkg/common/accessio"
 	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
@@ -18,7 +19,6 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	metav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/pkg/errors"
 )
@@ -28,7 +28,7 @@ type safeMap struct {
 	output map[string]cue.Value
 }
 
-func NewSafeMap() safeMap {
+func newSafeMap() safeMap {
 	return safeMap{
 		output: make(map[string]cue.Value),
 	}
@@ -57,12 +57,12 @@ func (o *safeMap) Copy() map[string]cue.Value {
 	return o.output
 }
 
-type ResolveOpts struct {
+type RenderOpts struct {
 	Filename string
 }
 
-func (c *Context) Resolve(opts *ResolveOpts) (*cue.Value, error) {
-	cmp, err := c.BuildInstance(&BuildOpts{Filename: opts.Filename})
+func (c *Context) Render(opts *RenderOpts) (*cue.Value, error) {
+	v, err := c.BuildInstance(&BuildOpts{Filename: opts.Filename})
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,6 @@ func (c *Context) Resolve(opts *ResolveOpts) (*cue.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	if err := cacheattr.Set(octx.AttributesContext(), cache); err != nil {
 		return nil, err
 	}
@@ -88,151 +87,136 @@ func (c *Context) Resolve(opts *ResolveOpts) (*cue.Value, error) {
 		return nil, errors.Wrapf(err, "cannot access default docker config")
 	}
 
-	iter, _ := cmp.Fields()
+	componentCache := newSafeMap()
 
-	components := NewSafeMap()
+	cfg := &flow.Config{}
 
-	g, _ := errgroup.WithContext(context.TODO())
+	workflow := flow.New(cfg, v, newTaskFactory(c, octx, &componentCache))
 
-	for iter.Next() {
-		v := iter.Value()
-		g.Go(func() error {
-			request := v.LookupPath(cue.ParsePath("$method"))
-			if request.Err() != nil {
-				return nil
-			}
-			requestType, err := request.String()
-			if err != nil {
-				return err
-			}
-			switch requestType {
-			case "get-resource":
-				repo, err := v.LookupPath(cue.ParsePath("repository")).String()
-				if err != nil {
-					return err
-				}
-
-				component, err := v.LookupPath(cue.ParsePath("component")).String()
-				if err != nil {
-					return err
-				}
-
-				key := path.Join(repo, component)
-				if ok := components.Has(key); !ok {
-					ocmRepo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(repo, nil))
-					if err != nil {
-						return err
-					}
-					res, err := c.resolveComponent(octx, ocmRepo, component)
-					if err != nil {
-						return err
-					}
-					components.Add(key, *res)
-					ocmRepo.Close()
-				}
-			default:
-				return nil
-			}
-			return nil
-
-		})
-	}
-
-	if err := g.Wait(); err != nil {
+	if err := workflow.Run(context.Background()); err != nil {
 		return nil, err
 	}
 
-	iter, _ = cmp.Fields()
+	result := workflow.Value()
 
-	g, _ = errgroup.WithContext(context.TODO())
+	return &result, nil
+}
 
-	output := NewSafeMap()
+type RequestResourceTask struct {
+	ctx    *Context
+	ocmctx ocm.Context
+	cache  *safeMap
+}
 
-	for iter.Next() {
-		v := iter.Value()
-		g.Go(func() error {
-			request := v.LookupPath(cue.ParsePath("$method"))
-			if request.Err() != nil {
-				return nil
-			}
-			requestType, err := request.String()
+func newTaskFactory(c *Context, octx ocm.Context, componentCache *safeMap) func(val cue.Value) (flow.Runner, error) {
+	return func(val cue.Value) (flow.Runner, error) {
+		request := val.LookupPath(cue.ParsePath("$method"))
+		if !request.Exists() {
+			return nil, nil
+		}
+
+		requestType, err := request.String()
+		if err != nil {
+			return nil, err
+		}
+
+		if requestType != "get-resource" {
+			return nil, nil
+		}
+
+		return &RequestResourceTask{
+			ctx:    c,
+			ocmctx: octx,
+			cache:  componentCache,
+		}, nil
+	}
+}
+
+func (r *RequestResourceTask) Run(t *flow.Task, pErr error) error {
+	// not sure this is OK, but the value which was used for this task
+	val := t.Value()
+
+	repo, err := val.LookupPath(cue.ParsePath("repository")).String()
+	if err != nil {
+		return err
+	}
+
+	component, err := val.LookupPath(cue.ParsePath("component")).String()
+	if err != nil {
+		return err
+	}
+
+	key := path.Join(repo, component)
+	if ok := r.cache.Has(key); !ok {
+		ocmRepo, err := r.ocmctx.RepositoryForSpec(ocmreg.NewRepositorySpec(repo, nil))
+		if err != nil {
+			return err
+		}
+		defer ocmRepo.Close()
+
+		res, err := r.ctx.resolveComponent(r.ocmctx, ocmRepo, component)
+		if err != nil {
+			return err
+		}
+
+		r.cache.Add(key, *res)
+	}
+
+	resource, err := val.LookupPath(cue.ParsePath("resource")).String()
+	if err != nil {
+		return err
+	}
+
+	resources, err := r.cache.Get(key).LookupPath(cue.MakePath(cue.Str("spec"), cue.Str("resources"))).List()
+	if err != nil {
+		return err
+	}
+
+	// iterate until we find the matching resource
+	for resources.Next() {
+		item := resources.Value()
+		match := item.LookupPath(cue.MakePath(cue.Str("name")))
+		if !match.Exists() {
+			continue
+		}
+
+		matchValue, err := match.String()
+		if err != nil {
+			return err
+		}
+
+		if matchValue != resource {
+			continue
+		}
+
+		resType, err := item.LookupPath(cue.MakePath(cue.Str("type"))).String()
+		if err != nil {
+			return err
+		}
+
+		if resType == "cuelang" {
+			ocmRepo, err := r.ocmctx.RepositoryForSpec(ocmreg.NewRepositorySpec(repo, nil))
 			if err != nil {
 				return err
 			}
-			switch requestType {
-			case "get-resource":
-				repo, err := v.LookupPath(cue.ParsePath("repository")).String()
-				if err != nil {
-					return err
-				}
+			defer ocmRepo.Close()
 
-				component, err := v.LookupPath(cue.ParsePath("component")).String()
-				if err != nil {
-					return err
-				}
-
-				key := path.Join(repo, component)
-
-				resource, err := v.LookupPath(cue.ParsePath("resource")).String()
-				if err != nil {
-					return err
-				}
-
-				resources, err := components.Get(key).LookupPath(cue.MakePath(cue.Str("spec"), cue.Str("resources"))).List()
-				if err != nil {
-					return err
-				}
-
-				for resources.Next() {
-					item := resources.Value()
-					match := item.LookupPath(cue.MakePath(cue.Str("name")))
-					if match.Err() != nil {
-						continue
-					}
-					matchValue, err := match.String()
-					if err != nil {
-						return err
-					}
-					if matchValue != resource {
-						continue
-					}
-					resType, err := item.LookupPath(cue.MakePath(cue.Str("type"))).String()
-					if err != nil {
-						return err
-					}
-					if resType == "cuelang" {
-						ocmRepo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(repo, nil))
-						if err != nil {
-							return err
-						}
-						resData, err := c.resolveResourceData(octx, ocmRepo, component, resource)
-						if err != nil {
-							return err
-						}
-						cueValue := c.context.CompileBytes(resData)
-						item = item.FillPath(cue.ParsePath("data"), cueValue)
-						ocmRepo.Close()
-					}
-					output.Add(v.Path().String(), item)
-					break
-				}
-			default:
-				return nil
+			resData, err := r.ctx.resolveResourceData(r.ocmctx, ocmRepo, component, resource)
+			if err != nil {
+				return err
 			}
-			return nil
-		})
+
+			cueValue := r.ctx.context.CompileBytes(resData)
+
+			item = item.FillPath(cue.ParsePath("data"), cueValue)
+		}
+
+		t.Fill(item)
+
+		break
 	}
 
-	if err := g.Wait(); err != nil {
-		return nil, err
-	}
-
-	outputData := output.Copy()
-	for p, item := range outputData {
-		*cmp = cmp.FillPath(cue.ParsePath(p), item)
-	}
-
-	return cmp, err
+	return nil
 }
 
 func (c *Context) resolveComponent(ctx ocm.Context, repo ocm.Repository, component string) (*cue.Value, error) {

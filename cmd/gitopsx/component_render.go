@@ -30,16 +30,16 @@ func (r *Render) Run() error {
 		return err
 	}
 
-	opts := component.ResolveOpts{
+	opts := component.RenderOpts{
 		Filename: r.File,
 	}
 
-	res, err := ctx.Resolve(&opts)
+	res, err := ctx.Render(&opts)
 	if err != nil {
 		return err
 	}
 
-	out := res.LookupPath(cue.MakePath(cue.Str(r.Expr)))
+	out := res.LookupPath(cue.ParsePath(r.Expr))
 
 	if r.Format == "yaml" {
 		//TODO: check if this is actually a list?

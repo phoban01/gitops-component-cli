@@ -23,4 +23,9 @@ ResourceRequest: {
 		name:       _name
 		nameOnly:   path.Base(_name)
 	}
+	data: {
+		args: {...}
+		template: {...}
+	}
+	output: data.template
 }
