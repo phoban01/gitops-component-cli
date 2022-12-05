@@ -11,20 +11,34 @@ The componet CLI is a tool to enable building, shipping and deploying OCM compon
 [CUE](https://cuelang.org) provides the frontend for building and rendering components.
 
 ```
-# make
-go install./cmd/gitopsx
+# install the executable
+go install ./cmd/gitopsx
+
+## component file commands
 
 # build
 gitopsx component build github.com/acme/mycomponent:v1.0.0
 
-# TODO: sign
-# gitopsx component sign github.com/acme/mycomponent:v1.0.0
+# sign
+gitopsx component sign github.com/acme/mycomponent:v1.0.0 --key rsa.key
+
+# verify
+gitopsx component verify github.com/acme/mycomponent:v1.0.0 --key rsa.pub
 
 # push
 gitopsx component push github.com/acme/mycomponent:v1.0.0 ghcr.io/$GITHUB_USER
 
+# describe -- show the component metadata
+gitopsx component describe github.com/acme/mycomponent:v1.0.0
+
+# get resources -- print the component resources
+gitopsx component get resources github.com/acme/mycomponent:v1.0.0
+
+## application file commands
+
 # render
 gitopsx component render -f Application.cue -oyaml
+
 ```
 
 ## Componentfile

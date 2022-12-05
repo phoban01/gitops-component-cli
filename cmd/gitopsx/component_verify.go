@@ -7,7 +7,7 @@ import (
 type Verify struct {
 	Component string `arg:"" name:"component" help:"component" type:"component"`
 	Signature string `name:"signature" default:"default" help:"the name of the signature"`
-	PublicKey string `name:"public-key" help:"publickey key" type:"publickey"`
+	PublicKey string `name:"key" help:"public key" type:"key"`
 }
 
 func (p *Verify) Help() string {

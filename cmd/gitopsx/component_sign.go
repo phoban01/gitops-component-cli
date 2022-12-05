@@ -7,7 +7,7 @@ import (
 type Sign struct {
 	Component  string `arg:"" name:"component" help:"component" type:"component"`
 	Signature  string `name:"signature" default:"default" help:"the name of the signature"`
-	PrivateKey string `name:"private-key" help:"private key" type:"privatekey"`
+	PrivateKey string `name:"key" help:"private key" type:"privatekey"`
 }
 
 func (p *Sign) Help() string {
