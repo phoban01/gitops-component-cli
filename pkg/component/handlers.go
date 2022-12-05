@@ -1,6 +1,8 @@
 package component
 
 import (
+	"strings"
+
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/inputs"
 	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/inputs/types/file"
@@ -38,7 +40,7 @@ func (c *Context) fileHandler(opts *addFileOpts) error {
 		ftype = opts.fileType
 	}
 
-	spec := file.New(opts.path, mtype.String(), true)
+	spec := file.New(opts.path, strings.Split(mtype.String(), ";")[0], true)
 
 	blob, _, err := spec.GetBlob(ictx, common.NewNameVersion(opts.name, ""), "")
 	if err != nil {

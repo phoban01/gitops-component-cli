@@ -10,6 +10,12 @@ import (
 	"cuelang.org/go/cue/load"
 )
 
+type BuildOpts struct {
+	Name     string
+	Version  string
+	Filename string
+}
+
 func (c *Context) Build(opts *BuildOpts) (*cue.Value, error) {
 	v, err := c.BuildInstance(opts)
 	if err != nil {
@@ -24,10 +30,15 @@ func (c *Context) BuildInstance(opts *BuildOpts) (*cue.Value, error) {
 		return nil, err
 	}
 
-	c.overlays[filepath.Join(workingdir, opts.Filename)] = load.FromBytes(data)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	c.overlays[filepath.Join(cwd, opts.Filename)] = load.FromBytes(data)
 
 	conf := &load.Config{
-		Dir:     workingdir,
+		Dir:     cwd,
 		Overlay: c.overlays,
 	}
 

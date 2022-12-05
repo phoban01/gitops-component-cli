@@ -243,10 +243,10 @@ func (c *Context) resolveComponent(ctx ocm.Context, repo ocm.Repository, compone
 	}
 
 	sources := map[string]load.Source{
-		filepath.Join(workingdir, "cd.cue"): load.FromFile(cdv),
+		filepath.Join(c.dir, "cd.cue"): load.FromFile(cdv),
 	}
 
-	return parse(c.context, sources)
+	return build(c.context, c.dir, sources)
 }
 
 func (c *Context) resolveResourceData(ctx ocm.Context, repo ocm.Repository, component, resource string) ([]byte, error) {
@@ -274,9 +274,9 @@ func (c *Context) resolveResourceData(ctx ocm.Context, repo ocm.Repository, comp
 	return acc.Get()
 }
 
-func parse(ctx *cue.Context, s map[string]load.Source) (*cue.Value, error) {
+func build(ctx *cue.Context, dir string, s map[string]load.Source) (*cue.Value, error) {
 	bis := load.Instances([]string{}, &load.Config{
-		Dir:     workingdir,
+		Dir:     dir,
 		Package: "*",
 		Overlay: s,
 	})

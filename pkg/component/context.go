@@ -16,15 +16,12 @@ import (
 	"github.com/open-component-model/ocm/pkg/env/builder"
 )
 
-var (
-	workingdir string = "/_workspace_/"
-)
-
 type Context struct {
 	context  *cue.Context
 	builder  *builder.Builder
 	overlays map[string]load.Source
 	archive  *comparch.Object
+	dir      string
 }
 
 type PushOpts struct {
@@ -33,22 +30,22 @@ type PushOpts struct {
 	Copy       bool
 }
 
-type BuildOpts struct {
-	Name     string
-	Version  string
-	Filename string
-}
-
 func New() *Context {
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
 	return &Context{
 		context:  cuecontext.New(),
 		builder:  builder.NewBuilder(env.NewEnvironment()),
 		overlays: map[string]load.Source{},
+		dir:      cwd,
 	}
 }
 
+// WithFS adds filesystem to the context
+//
 // Inspired by https://github.com/acorn-io/acorn/blob/a936079406945dc8344f9a7f07dd1ad4a90c655c/pkg/cue/instance.go
-// AddFS adds filesystem to the context
 func (c *Context) WithFS(files fs.FS) error {
 	return fs.WalkDir(files, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -60,7 +57,27 @@ func (c *Context) WithFS(files fs.FS) error {
 			return err
 		}
 
-		c.overlays[filepath.Join(workingdir, path)] = load.FromBytes(data)
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		c.overlays[filepath.Join(cwd, path)] = load.FromBytes(data)
+		return nil
+	})
+}
+
+func (c *Context) WithPackage(name string, files fs.FS) error {
+	return fs.WalkDir(files, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+
+		data, err := fs.ReadFile(files, path)
+		if err != nil {
+			return err
+		}
+
+		c.overlays[filepath.Join(c.dir, "cue.mod/pkg", name, path)] = load.FromBytes(data)
 		return nil
 	})
 }
@@ -78,6 +95,7 @@ func (c *Context) configure(name, version, provider string) error {
 			return err
 		}
 	}
+
 	if err := os.MkdirAll(dir, fs.ModePerm); err != nil {
 		return err
 	}
@@ -96,5 +114,6 @@ func (c *Context) configure(name, version, provider string) error {
 		c.archive.Close()
 		return err
 	}
+
 	return nil
 }
