@@ -26,7 +26,7 @@ func (r *Render) Validate() error {
 
 func (r *Render) Run() error {
 	ctx := component.New()
-	if err := ctx.WithFS(cuelibs.Files); err != nil {
+	if err := ctx.WithPackage("ocm.software", cuelibs.Files); err != nil {
 		return err
 	}
 

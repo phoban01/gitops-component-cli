@@ -39,7 +39,7 @@ func (b *Build) Run() error {
 // TODO: add support for oci images
 func (b *Build) run(opts *component.BuildOpts) error {
 	ctx := component.New()
-	if err := ctx.WithFS(cuelibs.Files); err != nil {
+	if err := ctx.WithPackage("ocm.software", cuelibs.Files); err != nil {
 		return err
 	}
 	_, err := ctx.Build(opts)
