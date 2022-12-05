@@ -7,4 +7,5 @@ type Component struct {
 	Sign     Sign     `cmd:""`
 	Verify   Verify   `cmd:""`
 	Describe Describe `cmd:""`
+	Get      Get      `cmd:""`
 }
