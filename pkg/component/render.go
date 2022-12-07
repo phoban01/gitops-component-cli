@@ -2,6 +2,7 @@ package component
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -78,6 +79,7 @@ func (c *Context) Render(opts *RenderOpts) (*cue.Value, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if err := cacheattr.Set(octx.AttributesContext(), cache); err != nil {
 		return nil, err
 	}
@@ -133,7 +135,6 @@ func newTaskFactory(c *Context, octx ocm.Context, componentCache *safeMap) func(
 }
 
 func (r *RequestResourceTask) Run(t *flow.Task, pErr error) error {
-	// not sure this is OK, but the value which was used for this task
 	val := t.Value()
 
 	repo, err := val.LookupPath(cue.ParsePath("repository")).String()
@@ -167,7 +168,8 @@ func (r *RequestResourceTask) Run(t *flow.Task, pErr error) error {
 		return err
 	}
 
-	resources, err := r.cache.Get(key).LookupPath(cue.MakePath(cue.Str("spec"), cue.Str("resources"))).List()
+	fmt.Println(r.cache.Get(key))
+	resources, err := r.cache.Get(key).LookupPath(cue.ParsePath("spec.resources")).List()
 	if err != nil {
 		return err
 	}
@@ -242,11 +244,9 @@ func (c *Context) resolveComponent(ctx ocm.Context, repo ocm.Repository, compone
 		return nil, err
 	}
 
-	sources := map[string]load.Source{
-		filepath.Join(c.dir, "cd.cue"): load.FromFile(cdv),
-	}
+	c.overlays[filepath.Join(c.dir, "cd.cue")] = load.FromFile(cdv)
 
-	return build(c.context, c.dir, sources)
+	return build(c.context, c.dir, c.overlays)
 }
 
 func (c *Context) resolveResourceData(ctx ocm.Context, repo ocm.Repository, component, resource string) ([]byte, error) {
@@ -284,5 +284,6 @@ func build(ctx *cue.Context, dir string, s map[string]load.Source) (*cue.Value, 
 		return &cue.Value{}, errors.New("not vaild")
 	}
 	v := ctx.BuildInstance(bis[0])
+	fmt.Println(v)
 	return &v, nil
 }
