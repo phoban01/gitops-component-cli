@@ -28,7 +28,7 @@ Here is a `componentfile` containing two resources:
 - a container image (podinfo) 
 - Kubernetes configuration (app) to deploy the container image
 
-```cuelang
+```cue
 import (
 	"ocm.software/ocm"
 )
@@ -85,7 +85,7 @@ In the following example we request the podinfo image and deployment config.
 
 Then we render the deployment configuration using parameters from the podinfo resource:
 
-```golang
+```cue
 import "ocm.software/ocm"
 
 podinfo: ocm.ResourceRequest & {
@@ -117,9 +117,7 @@ To render the output as `yaml` and apply it to the cluster, we can do the follow
 
 The following commands are available:
 
-```
-## commands
-
+```shell
 # build
 component build github.com/acme/mycomponent:v1.0.0
 
