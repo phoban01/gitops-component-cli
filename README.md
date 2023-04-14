@@ -20,43 +20,15 @@ The component CLI is a tool to enable building, shipping and deploying OCM compo
 
 [CUE](https://cuelang.org) provides the frontend for building and rendering components.
 
-The following commands are available:
-
-```
-## commands
-
-# build
-component build github.com/acme/mycomponent:v1.0.0
-
-# sign
-component sign github.com/acme/mycomponent:v1.0.0 --key rsa.key
-
-# verify
-component verify github.com/acme/mycomponent:v1.0.0 --key rsa.pub
-
-# push
-component push github.com/acme/mycomponent:v1.0.0 ghcr.io/$GITHUB_USER
-
-# describe -- show the component metadata
-component describe github.com/acme/mycomponent:v1.0.0
-
-# get resources -- print the component resources
-component get resources github.com/acme/mycomponent:v1.0.0
-
-## application file commands
-
-# render
-component render -f application.cue -oyaml
-
-```
-
 ## Component File
 
 To package a **Component** create a `componentfile.cue`.
 
-Here is a `componentfile` that has two resources: a container(podinfo) and the Kubernetes configuration (app) that can be used to deploy it:
+Here is a `componentfile` containing two resources:
+- a container image (podinfo) 
+- Kubernetes configuration (app) to deploy the container image
 
-```golang
+```cuelang
 import (
 	"ocm.software/ocm"
 )
@@ -97,7 +69,7 @@ resources: {
 }
 ```
 
-We can build the component by passing the `componentfile.cue` to the build command:
+Build the component by passing the `componentfile.cue` to the build command:
 
 `component build -f componentfile.cue acme.io/podinfo:v1.0.0`
 
@@ -141,3 +113,34 @@ To render the output as `yaml` and apply it to the cluster, we can do the follow
 
 `component render -f application.cue -oyaml | kubectl apply -f -`
 
+## API
+
+The following commands are available:
+
+```
+## commands
+
+# build
+component build github.com/acme/mycomponent:v1.0.0
+
+# sign
+component sign github.com/acme/mycomponent:v1.0.0 --key rsa.key
+
+# verify
+component verify github.com/acme/mycomponent:v1.0.0 --key rsa.pub
+
+# push
+component push github.com/acme/mycomponent:v1.0.0 ghcr.io/$GITHUB_USER
+
+# describe -- show the component metadata
+component describe github.com/acme/mycomponent:v1.0.0
+
+# get resources -- print the component resources
+component get resources github.com/acme/mycomponent:v1.0.0
+
+## application file commands
+
+# render
+component render -f application.cue -oyaml
+
+```
