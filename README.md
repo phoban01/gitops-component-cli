@@ -4,17 +4,26 @@
 
 Note this is very early stages work with many rough edges and performance is quite slow.
 
+## Installation
+
+To build the `component` CLI:
+
+`make build`
+
+To install in `/usr/local/bin`:
+
+`make install`
+
 ## Getting started
 
 The component CLI is a tool to enable building, shipping and deploying OCM components.
 
 [CUE](https://cuelang.org) provides the frontend for building and rendering components.
 
-```
-# install the executable
-go install ./cmd/component
+The following commands are available:
 
-## component file commands
+```
+## commands
 
 # build
 component build github.com/acme/mycomponent:v1.0.0
@@ -90,28 +99,32 @@ resources: {
 
 We can build the component by passing the `componentfile.cue` to the build command:
 
-`component build -f componentfile.cue github.com/acme/my-component:v1.0.0`
+`component build -f componentfile.cue acme.io/podinfo:v1.0.0`
 
 Components can be stored in any OCI registry:
 
-`component push github.com/acme/my-component:v1.0.0 ghcr.io/acme`
+`component push acme.io/podinfo:v1.0.0 ghcr.io/octocat`
 
 ## Render applications
 
-Using the Component CLI we can request resources directly via CUE. Here we request the podinfo and the deployment config. Then we render the deployment configuration using parameters from the podinfo resource:
+Using the Component CLI we can request resources using CUE and use the resource metadata in our configuration.
+
+In the following example we request the podinfo image and deployment config.
+
+Then we render the deployment configuration using parameters from the podinfo resource:
 
 ```golang
 import "ocm.software/ocm"
 
 podinfo: ocm.ResourceRequest & {
-	repository: "ghcr.io/phoban01"
-	component:  "github.com/phoban01/test:v1.0.3"
+	repository: "ghcr.io/octocat"
+	component:  "acme.io/podinfo:v1.0.0"
 	resource:   "podinfo"
 }
 
 deployment: ocm.ResourceRequest & {
-	repository: "ghcr.io/phoban01"
-	component:  "github.com/phoban01/test:v1.0.4"
+	repository: "ghcr.io/octocat"
+	component:  "acme.io/podinfo:v1.0.0"
 	resource:   "deployment"
 }
 
@@ -124,6 +137,7 @@ out: (deployment.data & {
 }).template
 ```
 
-To generate the output as yaml we use the following component cli commands:
+To render the output as `yaml` and apply it to the cluster, we can do the following:
 
-`component render -f application.cue -oyaml`
+`component render -f application.cue -oyaml | kubectl apply -f -`
+
