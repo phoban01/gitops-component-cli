@@ -8,7 +8,7 @@ config: {
 
 base: {
 	repository: "ghcr.io/phoban01"
-	component:  "github.com/phoban01/weave-gitops:v1.0.0"
+	component:  "weave.works/weave-gitops:v1.0.0"
 }
 
 wego: base & ocm.ResourceRequest & {

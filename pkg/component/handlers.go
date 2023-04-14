@@ -1,18 +1,16 @@
 package component
 
 import (
-	"strings"
-
 	"github.com/gabriel-vasile/mimetype"
+	"github.com/mandelsoft/vfs/pkg/osfs"
 	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/inputs"
 	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/inputs/types/file"
 	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/inputs/types/ociimage"
-	"github.com/open-component-model/ocm/pkg/common"
 	"github.com/open-component-model/ocm/pkg/common/accessio"
 	"github.com/open-component-model/ocm/pkg/common/accessobj"
 	"github.com/open-component-model/ocm/pkg/contexts/clictx"
 	"github.com/open-component-model/ocm/pkg/contexts/datacontext/attrs/tmpcache"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartefact"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/accessmethods/ociartifact"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	metav1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/open-component-model/ocm/pkg/mime"
@@ -27,7 +25,6 @@ type addFileOpts struct {
 
 // TODO: enable compression
 func (c *Context) fileHandler(opts *addFileOpts) error {
-	ictx := inputs.NewContext(clictx.DefaultContext(), nil, nil)
 	tmpcache.Set(clictx.DefaultContext(), &tmpcache.Attribute{Path: "/tmp"})
 
 	mtype, err := mimetype.DetectFile(opts.path)
@@ -40,18 +37,8 @@ func (c *Context) fileHandler(opts *addFileOpts) error {
 		ftype = opts.fileType
 	}
 
-	spec := file.New(opts.path, strings.Split(mtype.String(), ";")[0], true)
-
-	blob, _, err := spec.GetBlob(ictx, common.NewNameVersion(opts.name, ""), "")
-	if err != nil {
-		return err
-	}
-
-	acc, err := c.archive.AddBlob(blob, ftype, "", nil)
-	if err != nil {
-		return err
-	}
-	blob.Close()
+	fs := osfs.New()
+	acc := accessio.BlobAccessForFile(mtype.String(), opts.path, fs)
 
 	r := &compdesc.ResourceMeta{
 		ElementMeta: compdesc.ElementMeta{
@@ -62,7 +49,7 @@ func (c *Context) fileHandler(opts *addFileOpts) error {
 		Type:     ftype,
 	}
 
-	if err := c.archive.SetResource(r, acc); err != nil {
+	if err := c.archive.SetResourceBlob(r, acc, "", nil); err != nil {
 		return err
 	}
 
@@ -93,7 +80,7 @@ func (c *Context) imageHandler(opts *addImageOpts) error {
 	}
 
 	// spec := ociimage.New(opts.image)
-	spec := ociartefact.New(opts.image)
+	spec := ociartifact.New(opts.image)
 
 	if err := c.archive.SetResource(r, spec); err != nil {
 		return err

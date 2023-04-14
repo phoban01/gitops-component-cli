@@ -1,47 +1,47 @@
-## gitopsx component CLI
+## component CLI
 
-** An experimental tool to manage components for GitOps **
+** An experimental tool to manage OCM components using CUE **
 
 Note this is very early stages work with many rough edges and performance is quite slow.
 
 ## Getting started
 
-The componet CLI is a tool to enable building, shipping and deploying OCM components.
+The component CLI is a tool to enable building, shipping and deploying OCM components.
 
 [CUE](https://cuelang.org) provides the frontend for building and rendering components.
 
 ```
 # install the executable
-go install ./cmd/gitopsx
+go install ./cmd/component
 
 ## component file commands
 
 # build
-gitopsx component build github.com/acme/mycomponent:v1.0.0
+component build github.com/acme/mycomponent:v1.0.0
 
 # sign
-gitopsx component sign github.com/acme/mycomponent:v1.0.0 --key rsa.key
+component sign github.com/acme/mycomponent:v1.0.0 --key rsa.key
 
 # verify
-gitopsx component verify github.com/acme/mycomponent:v1.0.0 --key rsa.pub
+component verify github.com/acme/mycomponent:v1.0.0 --key rsa.pub
 
 # push
-gitopsx component push github.com/acme/mycomponent:v1.0.0 ghcr.io/$GITHUB_USER
+component push github.com/acme/mycomponent:v1.0.0 ghcr.io/$GITHUB_USER
 
 # describe -- show the component metadata
-gitopsx component describe github.com/acme/mycomponent:v1.0.0
+component describe github.com/acme/mycomponent:v1.0.0
 
 # get resources -- print the component resources
-gitopsx component get resources github.com/acme/mycomponent:v1.0.0
+component get resources github.com/acme/mycomponent:v1.0.0
 
 ## application file commands
 
 # render
-gitopsx component render -f Application.cue -oyaml
+component render -f application.cue -oyaml
 
 ```
 
-## Componentfile
+## Component File
 
 To package a **Component** create a `componentfile.cue`.
 
@@ -90,11 +90,11 @@ resources: {
 
 We can build the component by passing the `componentfile.cue` to the build command:
 
-`gitopsx component build -f componentfile.cue github.com/acme/my-component:v1.0.0`
+`component build -f componentfile.cue github.com/acme/my-component:v1.0.0`
 
 Components can be stored in any OCI registry:
 
-`gitopsx component push github.com/acme/my-component:v1.0.0 ghcr.io/acme`
+`component push github.com/acme/my-component:v1.0.0 ghcr.io/acme`
 
 ## Render applications
 
@@ -126,4 +126,4 @@ out: (deployment.data & {
 
 To generate the output as yaml we use the following component cli commands:
 
-`gitopsx component render -f Application.cue -oyaml`
+`component render -f application.cue -oyaml`

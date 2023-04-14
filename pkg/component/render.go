@@ -2,7 +2,6 @@ package component
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -168,7 +167,10 @@ func (r *RequestResourceTask) Run(t *flow.Task, pErr error) error {
 		return err
 	}
 
-	fmt.Println(r.cache.Get(key))
+	if !r.cache.Get(key).LookupPath(cue.ParsePath("spec")).Exists() {
+		return nil
+	}
+
 	resources, err := r.cache.Get(key).LookupPath(cue.ParsePath("spec.resources")).List()
 	if err != nil {
 		return err
@@ -280,10 +282,6 @@ func build(ctx *cue.Context, dir string, s map[string]load.Source) (*cue.Value, 
 		Package: "*",
 		Overlay: s,
 	})
-	if len(bis) != 1 {
-		return &cue.Value{}, errors.New("not vaild")
-	}
 	v := ctx.BuildInstance(bis[0])
-	fmt.Println(v)
 	return &v, nil
 }

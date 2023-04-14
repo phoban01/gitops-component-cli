@@ -54,8 +54,7 @@ func (c *Context) Sign(opts *SignOpts) error {
 		return err
 	}
 
-	state := common.NewWalkingState()
-	if _, err := signctx.Apply(common.NewPrinter(os.Stdout), &state, cv, handlerOpts, true); err != nil {
+	if _, err := signctx.Apply(common.NewPrinter(os.Stdout), nil, cv, handlerOpts, true); err != nil {
 		return err
 	}
 
